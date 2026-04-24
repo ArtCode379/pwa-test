@@ -38,15 +38,32 @@ function rewriteUrls(text) {
 const UA_SHIM = `<script>
 (function() {
   try {
+    // iOS Safari UA (mirrors SPWEappWebView userAgent)
     Object.defineProperty(navigator, 'userAgent', {
       get: function() {
         return 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
       }
     });
+
+    // Chrome shim
     window.chrome = { runtime: {} };
     if (window.webkit && window.webkit.messageHandlers) {
       try { delete window.webkit.messageHandlers; } catch(e) {}
     }
+
+    // Make the site think it is NOT inside an iframe —
+    // prevents iframe-detection guards that break functionality
+    Object.defineProperty(window, 'top',         { get: function() { return window; } });
+    Object.defineProperty(window, 'parent',      { get: function() { return window; } });
+    Object.defineProperty(window, 'frameElement',{ get: function() { return null;   } });
+
+    // Suppress the site's own PWA install prompt so it doesn't
+    // appear over our PWA shell
+    window.addEventListener('beforeinstallprompt', function(e) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }, true);
+
   } catch(e) {}
 })();
 </script>`
