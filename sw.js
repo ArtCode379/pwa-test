@@ -1,9 +1,10 @@
-const CACHE_NAME = 'spwinera-pwa-v1'
+const CACHE_NAME = 'spwinera-pwa-v2'
 const SHELL_ASSETS = [
 	'./',
 	'./index.html',
 	'./manifest.json',
 	'./css/style.css',
+	'./js/config.js',
 	'./js/app.js',
 	'./icons/icon.png',
 ]
@@ -33,6 +34,7 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
 	const url = new URL(event.request.url)
 
+	// Serve only our own shell assets from cache
 	if (url.origin === self.location.origin) {
 		event.respondWith(
 			caches
