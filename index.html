@@ -8,23 +8,29 @@
 		/>
 		<title>Sp Winera</title>
 
-		<!-- PWA -->
 		<link rel="manifest" href="./manifest.json" />
 		<meta name="theme-color" content="#1a2151" />
 
-		<!-- iOS standalone / fullscreen -->
 		<meta name="apple-mobile-web-app-capable" content="yes" />
-		<meta
-			name="apple-mobile-web-app-status-bar-style"
-			content="black-translucent"
-		/>
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 		<meta name="apple-mobile-web-app-title" content="Sp Winera" />
 		<link rel="apple-touch-icon" href="./icons/icon.png" />
 
 		<link rel="stylesheet" href="./css/style.css" />
 	</head>
 	<body>
-		<div id="app"></div>
+		<div id="app">
+			<iframe
+				id="webview"
+				allow="fullscreen; geolocation; camera; microphone; payment"
+				allowfullscreen
+				referrerpolicy="no-referrer-when-downgrade"
+				sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation allow-top-navigation-by-user-activation"
+				title="Sp Winera"
+			></iframe>
+		</div>
+
+		<script src="./js/config.js"></script>
 		<script src="./js/app.js"></script>
 	</body>
 </html>
