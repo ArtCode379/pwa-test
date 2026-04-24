@@ -10,6 +10,7 @@
 	},
 	"dependencies": {
 		"express": "^4.18.2",
-		"http-proxy-middleware": "^3.0.3"
+		"http-proxy-middleware": "^3.0.3",
+		"https-proxy-agent": "^7.0.4"
 	}
 }

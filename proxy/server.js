@@ -10,10 +10,17 @@
 
 const express = require('express')
 const { createProxyMiddleware, responseInterceptor } = require('http-proxy-middleware')
+const { HttpsProxyAgent } = require('https-proxy-agent')
 
-const TARGET      = 'https://slotcity.ua'
-const PORT        = process.env.PORT || 3001
+const TARGET       = 'https://slotcity.ua'
+const PORT         = process.env.PORT || 3001
 const PROXY_ORIGIN = process.env.PROXY_ORIGIN || `http://localhost:${PORT}`
+
+// Upstream proxy for geo-restriction bypass (set UPSTREAM_PROXY env var on Railway)
+// Example: http://93.171.157.249:8080
+const upstreamProxy = process.env.UPSTREAM_PROXY
+const agent = upstreamProxy ? new HttpsProxyAgent(upstreamProxy) : undefined
+if (upstreamProxy) console.log(` Using upstream proxy: ${upstreamProxy}`)
 
 const app = express()
 
@@ -91,6 +98,7 @@ const proxy = createProxyMiddleware({
 	secure: false,
 	ws: true,
 	selfHandleResponse: true,
+	agent,
 
 	on: {
 		proxyRes: responseInterceptor(async (responseBuffer, proxyRes, req, res) => {
