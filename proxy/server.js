@@ -136,7 +136,7 @@ const proxy = createProxyMiddleware({
 			if (contentType.includes('text/html')) {
 				// Strip the inner site's manifest so Chrome doesn't
 				// offer to install the proxy site as a separate PWA
-				body = body.replace(/<link[^>]+rel=["']manifest["'][^>]*>/gi, '')
+				body = body.replace(/<link[^>]*rel\s*=\s*["']?manifest["']?[^>]*\/?>/gi, '')
 
 				const inject = UA_SHIM + GOOGLE_AUTH_SHIM
 				if (body.includes('<head>')) {
