@@ -57,12 +57,18 @@ const UA_SHIM = `<script>
     Object.defineProperty(window, 'parent',      { get: function() { return window; } });
     Object.defineProperty(window, 'frameElement',{ get: function() { return null;   } });
 
-    // Suppress the site's own PWA install prompt so it doesn't
-    // appear over our PWA shell
+    // Suppress the site's own PWA install prompt
     window.addEventListener('beforeinstallprompt', function(e) {
       e.preventDefault();
       e.stopImmediatePropagation();
     }, true);
+
+    // Block service worker registration from the inner site
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register = function() {
+        return Promise.reject(new Error('SW blocked by wrapper'));
+      };
+    }
 
   } catch(e) {}
 })();
@@ -128,6 +134,10 @@ const proxy = createProxyMiddleware({
 			body = rewriteUrls(body)
 
 			if (contentType.includes('text/html')) {
+				// Strip the inner site's manifest so Chrome doesn't
+				// offer to install the proxy site as a separate PWA
+				body = body.replace(/<link[^>]+rel=["']manifest["'][^>]*>/gi, '')
+
 				const inject = UA_SHIM + GOOGLE_AUTH_SHIM
 				if (body.includes('<head>')) {
 					body = body.replace('<head>', '<head>' + inject)

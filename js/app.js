@@ -72,6 +72,14 @@ window.addEventListener('resize', () => {
 	}
 })
 
+// ── PWA install prompt ────────────────────────────────────────────────────────
+// Capture and hold the event — prevents it from disappearing immediately.
+// Browser will show it when the user interacts or we can trigger it manually.
+window.addEventListener('beforeinstallprompt', e => {
+	e.preventDefault()
+	window.__installPrompt = e
+})
+
 // ── Service Worker ────────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
 	navigator.serviceWorker
