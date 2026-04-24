@@ -1,0 +1,8 @@
+node_modules/
+proxy/
+package.json
+package-lock.json
+icons/icon-192.png
+icons/icon-512.png
+icons/icon.svg
+icons/generate.js
