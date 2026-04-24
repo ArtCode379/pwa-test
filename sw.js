@@ -1,4 +1,4 @@
-const CACHE_NAME = 'spwinera-pwa-v2'
+const CACHE_NAME = 'spwinera-pwa-v3'
 const SHELL_ASSETS = [
 	'./',
 	'./index.html',
@@ -34,7 +34,26 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
 	const url = new URL(event.request.url)
 
-	// Serve only our own shell assets from cache
+	// Add ngrok bypass header to all requests going to the proxy tunnel
+	if (url.hostname.includes('ngrok')) {
+		event.respondWith(
+			fetch(url.toString(), {
+				method: event.request.method,
+				headers: new Headers({
+					...Object.fromEntries(event.request.headers.entries()),
+					'ngrok-skip-browser-warning': '1',
+				}),
+				body: ['GET', 'HEAD'].includes(event.request.method)
+					? undefined
+					: event.request.body,
+				credentials: 'include',
+				redirect: 'follow',
+			}),
+		)
+		return
+	}
+
+	// Serve our own shell assets from cache
 	if (url.origin === self.location.origin) {
 		event.respondWith(
 			caches
