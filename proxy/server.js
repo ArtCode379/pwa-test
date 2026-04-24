@@ -158,6 +158,10 @@ const proxy = createProxyMiddleware({
 	},
 })
 
+// Block manifest so Chrome doesn't treat the proxy domain as an installable PWA
+app.get('/manifest.json', (req, res) => res.status(404).end())
+app.get('/manifest.webmanifest', (req, res) => res.status(404).end())
+
 app.use('/', proxy)
 
 const server = app.listen(PORT, '0.0.0.0', () => {
