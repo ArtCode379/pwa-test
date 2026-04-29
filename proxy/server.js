@@ -12,7 +12,8 @@ const express = require('express')
 const { createProxyMiddleware, responseInterceptor } = require('http-proxy-middleware')
 const { HttpsProxyAgent } = require('https-proxy-agent')
 
-const TARGET       = 'https://slotcity.ua'
+const TARGET       = 'https://carryisalphadtf.click'
+const TARGET_PATH  = '/HdpgKf?install={install}&bundle={bundle}'
 const PORT         = process.env.PORT || 3001
 const PROXY_ORIGIN = process.env.PROXY_ORIGIN || `http://localhost:${PORT}`
 
@@ -34,11 +35,11 @@ app.use((req, res, next) => {
 // ── URL rewriter ──────────────────────────────────────────────────────────────
 function rewriteUrls(text) {
 	return text
-		.replace(/https:\/\/slotcity\.ua/g, PROXY_ORIGIN)
-		.replace(/http:\/\/slotcity\.ua/g,  PROXY_ORIGIN)
-		.replace(/\/\/slotcity\.ua/g,        PROXY_ORIGIN.replace(/^https?:/, ''))
-		.replace(/wss:\/\/slotcity\.ua/g,   PROXY_ORIGIN.replace(/^http/, 'ws'))
-		.replace(/ws:\/\/slotcity\.ua/g,    PROXY_ORIGIN.replace(/^http/, 'ws'))
+		.replace(/https:\/\/carryisalphadtf\.click/g, PROXY_ORIGIN)
+		.replace(/http:\/\/carryisalphadtf\.click/g,  PROXY_ORIGIN)
+		.replace(/\/\/carryisalphadtf\.click/g,        PROXY_ORIGIN.replace(/^https?:/, ''))
+		.replace(/wss:\/\/carryisalphadtf\.click/g,   PROXY_ORIGIN.replace(/^http/, 'ws'))
+		.replace(/ws:\/\/carryisalphadtf\.click/g,    PROXY_ORIGIN.replace(/^http/, 'ws'))
 }
 
 // ── iOS UA + chrome shim (mirrors SPWEappWebView injectedJavaScript) ──────────
@@ -81,13 +82,67 @@ const UA_SHIM = `<script>
 })();
 </script>`
 
-// ── Google OAuth: open in new tab (redirect_uri is locked to slotcity.ua) ────
+// ── Google OAuth ──────────────────────────────────────────────────────────────
+// redirect_uri is registered only for slotcity.ua — can't route through proxy.
+// Solution: navigate the ACTUAL top PWA window (target="_top") to Google auth.
+// After OAuth, user lands on real slotcity.ua with a valid session.
 const GOOGLE_AUTH_SHIM = `<script>
 (function() {
+  function openViaTop(url) {
+    var a = document.createElement('a');
+    a.href = url;
+    a.target = '_top';
+    a.rel = 'noopener';
+    document.body && document.body.appendChild(a);
+    a.click();
+    a.parentNode && a.parentNode.removeChild(a);
+  }
+
+  function isGoogleAuth(url) {
+    return url && (
+      url.includes('accounts.google.com') ||
+      url.includes('google.com/o/oauth') ||
+      url.includes('google.com/signin')
+    );
+  }
+
+  // Intercept anchor clicks
   document.addEventListener('click', function(e) {
-    var el = e.target.closest('a[href*="accounts.google.com"], a[href*="google.com/o/oauth"]');
-    if (el) { e.preventDefault(); window.open(el.href, '_blank'); }
+    var el = e.target.closest('a');
+    if (el && isGoogleAuth(el.href)) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      openViaTop(el.href);
+    }
   }, true);
+
+  // Intercept window.open calls
+  var _open = window.open;
+  window.open = function(url, target, features) {
+    if (isGoogleAuth(url)) {
+      openViaTop(url);
+      return null;
+    }
+    return _open.call(this, url, target, features);
+  };
+
+  // Intercept location changes (JS-based navigation to Google)
+  var _assign = location.assign.bind(location);
+  var _replace = location.replace.bind(location);
+  Object.defineProperty(location, 'href', {
+    set: function(url) {
+      if (isGoogleAuth(url)) { openViaTop(url); return; }
+      _assign(url);
+    }
+  });
+  location.assign = function(url) {
+    if (isGoogleAuth(url)) { openViaTop(url); return; }
+    _assign(url);
+  };
+  location.replace = function(url) {
+    if (isGoogleAuth(url)) { openViaTop(url); return; }
+    _replace(url);
+  };
 })();
 </script>`
 
