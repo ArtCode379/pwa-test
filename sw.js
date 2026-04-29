@@ -34,7 +34,6 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
 	const url = new URL(event.request.url)
 
-	// Add ngrok bypass header to all requests going to the proxy tunnel
 	if (url.hostname.includes('ngrok')) {
 		event.respondWith(
 			fetch(url.toString(), {
@@ -43,9 +42,6 @@ self.addEventListener('fetch', event => {
 					...Object.fromEntries(event.request.headers.entries()),
 					'ngrok-skip-browser-warning': '1',
 				}),
-				body: ['GET', 'HEAD'].includes(event.request.method)
-					? undefined
-					: event.request.body,
 				credentials: 'include',
 				redirect: 'follow',
 			}),
@@ -53,7 +49,6 @@ self.addEventListener('fetch', event => {
 		return
 	}
 
-	// Serve our own shell assets from cache
 	if (url.origin === self.location.origin) {
 		event.respondWith(
 			caches

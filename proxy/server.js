@@ -1,13 +1,3 @@
-/**
- * Proxy server — strips iframe-blocking headers from slotcity.ua.
- *
- * Deploy to Railway:
- *  1. Push this repo to GitHub
- *  2. New Railway project → Deploy from GitHub → Root Directory: proxy
- *  3. Add env var: PROXY_ORIGIN = https://your-service.up.railway.app
- *  4. Copy the Railway URL → paste into PWA_App/js/config.js
- */
-
 const express = require('express')
 const {
 	createProxyMiddleware,
@@ -17,12 +7,9 @@ const { HttpsProxyAgent } = require('https-proxy-agent')
 
 const TARGET =
 	'https://carryisalphadtf.click/HdpgKf?install={install}&bundle={bundle}'
-const TARGET_PATH = '/HdpgKf?install={install}&bundle={bundle}'
 const PORT = process.env.PORT || 3001
 const PROXY_ORIGIN = process.env.PROXY_ORIGIN || `http://localhost:${PORT}`
 
-// Upstream proxy for geo-restriction bypass (set UPSTREAM_PROXY env var on Railway)
-// Example: http://93.171.157.249:8080
 const upstreamProxy = process.env.UPSTREAM_PROXY
 const agent = upstreamProxy ? new HttpsProxyAgent(upstreamProxy) : undefined
 if (upstreamProxy) console.log(` Using upstream proxy: ${upstreamProxy}`)
@@ -36,7 +23,6 @@ app.use((req, res, next) => {
 	next()
 })
 
-// ── URL rewriter ──────────────────────────────────────────────────────────────
 function rewriteUrls(text) {
 	return text
 		.replace(/https:\/\/carryisalphadtf\.click/g, PROXY_ORIGIN)
@@ -55,36 +41,22 @@ function rewriteUrls(text) {
 		)
 }
 
-// ── iOS UA + chrome shim (mirrors SPWEappWebView injectedJavaScript) ──────────
 const UA_SHIM = `<script>
 (function() {
   try {
-    // iOS Safari UA (mirrors SPWEappWebView userAgent)
     Object.defineProperty(navigator, 'userAgent', {
       get: function() {
         return 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
       }
     });
 
-    // Chrome shim
     window.chrome = { runtime: {} };
-    if (window.webkit && window.webkit.messageHandlers) {
-      try { delete window.webkit.messageHandlers; } catch(e) {}
-    }
 
-    // Make the site think it is NOT inside an iframe —
-    // prevents iframe-detection guards that break functionality
-    Object.defineProperty(window, 'top',         { get: function() { return window; } });
-    Object.defineProperty(window, 'parent',      { get: function() { return window; } });
-    Object.defineProperty(window, 'frameElement',{ get: function() { return null;   } });
-
-    // Suppress the site's own PWA install prompt
     window.addEventListener('beforeinstallprompt', function(e) {
       e.preventDefault();
       e.stopImmediatePropagation();
     }, true);
 
-    // Block service worker registration from the inner site
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register = function() {
         return Promise.reject(new Error('SW blocked by wrapper'));
@@ -95,10 +67,8 @@ const UA_SHIM = `<script>
 })();
 </script>`
 
-// ── Google OAuth ──────────────────────────────────────────────────────────────
-// redirect_uri is registered only for slotcity.ua — can't route through proxy.
-// Solution: navigate the ACTUAL top PWA window (target="_top") to Google auth.
-// After OAuth, user lands on real slotcity.ua with a valid session.
+// Google OAuth — navigate the top PWA window to Google auth
+// (redirect_uri is registered only for the real domain, not the proxy)
 const GOOGLE_AUTH_SHIM = `<script>
 (function() {
   function openViaTop(url) {
@@ -119,7 +89,6 @@ const GOOGLE_AUTH_SHIM = `<script>
     );
   }
 
-  // Intercept anchor clicks
   document.addEventListener('click', function(e) {
     var el = e.target.closest('a');
     if (el && isGoogleAuth(el.href)) {
@@ -129,7 +98,6 @@ const GOOGLE_AUTH_SHIM = `<script>
     }
   }, true);
 
-  // Intercept window.open calls
   var _open = window.open;
   window.open = function(url, target, features) {
     if (isGoogleAuth(url)) {
@@ -139,15 +107,8 @@ const GOOGLE_AUTH_SHIM = `<script>
     return _open.call(this, url, target, features);
   };
 
-  // Intercept location changes (JS-based navigation to Google)
   var _assign = location.assign.bind(location);
   var _replace = location.replace.bind(location);
-  Object.defineProperty(location, 'href', {
-    set: function(url) {
-      if (isGoogleAuth(url)) { openViaTop(url); return; }
-      _assign(url);
-    }
-  });
   location.assign = function(url) {
     if (isGoogleAuth(url)) { openViaTop(url); return; }
     _assign(url);
@@ -159,7 +120,6 @@ const GOOGLE_AUTH_SHIM = `<script>
 })();
 </script>`
 
-// ── Proxy ─────────────────────────────────────────────────────────────────────
 const proxy = createProxyMiddleware({
 	target: TARGET,
 	changeOrigin: true,
@@ -171,7 +131,6 @@ const proxy = createProxyMiddleware({
 	on: {
 		proxyRes: responseInterceptor(
 			async (responseBuffer, proxyRes, req, res) => {
-				// Strip iframe-blocking headers
 				delete proxyRes.headers['x-frame-options']
 				delete proxyRes.headers['content-security-policy']
 				delete proxyRes.headers['content-security-policy-report-only']
@@ -179,14 +138,12 @@ const proxy = createProxyMiddleware({
 				res.removeHeader('Content-Security-Policy')
 				res.removeHeader('Content-Security-Policy-Report-Only')
 
-				// Rewrite Location header so redirects stay inside the proxy
 				if (proxyRes.headers['location']) {
 					const rewritten = rewriteUrls(proxyRes.headers['location'])
 					proxyRes.headers['location'] = rewritten
 					res.setHeader('Location', rewritten)
 				}
 
-				// Strip domain from Set-Cookie so cookies work on proxy origin
 				if (proxyRes.headers['set-cookie']) {
 					const cookies = Array.isArray(proxyRes.headers['set-cookie'])
 						? proxyRes.headers['set-cookie']
@@ -211,8 +168,6 @@ const proxy = createProxyMiddleware({
 				body = rewriteUrls(body)
 
 				if (contentType.includes('text/html')) {
-					// Strip the inner site's manifest so Chrome doesn't
-					// offer to install the proxy site as a separate PWA
 					body = body.replace(
 						/<link[^>]*rel\s*=\s*["']?manifest["']?[^>]*\/?>/gi,
 						'',
@@ -239,7 +194,6 @@ const proxy = createProxyMiddleware({
 	},
 })
 
-// Block manifest so Chrome doesn't treat the proxy domain as an installable PWA
 app.get('/manifest.json', (req, res) => res.status(404).end())
 app.get('/manifest.webmanifest', (req, res) => res.status(404).end())
 
