@@ -1,5 +1,5 @@
 node_modules/
-proxy/node_modules/
+proxy/
 /package-lock.json
 icons/icon-192.png
 icons/icon-512.png
