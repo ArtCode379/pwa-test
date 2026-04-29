@@ -9,12 +9,16 @@
  */
 
 const express = require('express')
-const { createProxyMiddleware, responseInterceptor } = require('http-proxy-middleware')
+const {
+	createProxyMiddleware,
+	responseInterceptor,
+} = require('http-proxy-middleware')
 const { HttpsProxyAgent } = require('https-proxy-agent')
 
-const TARGET       = 'https://carryisalphadtf.click'
-const TARGET_PATH  = '/HdpgKf?install={install}&bundle={bundle}'
-const PORT         = process.env.PORT || 3001
+const TARGET =
+	'https://carryisalphadtf.click/HdpgKf?install={install}&bundle={bundle}'
+const TARGET_PATH = '/HdpgKf?install={install}&bundle={bundle}'
+const PORT = process.env.PORT || 3001
 const PROXY_ORIGIN = process.env.PROXY_ORIGIN || `http://localhost:${PORT}`
 
 // Upstream proxy for geo-restriction bypass (set UPSTREAM_PROXY env var on Railway)
@@ -36,10 +40,19 @@ app.use((req, res, next) => {
 function rewriteUrls(text) {
 	return text
 		.replace(/https:\/\/carryisalphadtf\.click/g, PROXY_ORIGIN)
-		.replace(/http:\/\/carryisalphadtf\.click/g,  PROXY_ORIGIN)
-		.replace(/\/\/carryisalphadtf\.click/g,        PROXY_ORIGIN.replace(/^https?:/, ''))
-		.replace(/wss:\/\/carryisalphadtf\.click/g,   PROXY_ORIGIN.replace(/^http/, 'ws'))
-		.replace(/ws:\/\/carryisalphadtf\.click/g,    PROXY_ORIGIN.replace(/^http/, 'ws'))
+		.replace(/http:\/\/carryisalphadtf\.click/g, PROXY_ORIGIN)
+		.replace(
+			/\/\/carryisalphadtf\.click/g,
+			PROXY_ORIGIN.replace(/^https?:/, ''),
+		)
+		.replace(
+			/wss:\/\/carryisalphadtf\.click/g,
+			PROXY_ORIGIN.replace(/^http/, 'ws'),
+		)
+		.replace(
+			/ws:\/\/carryisalphadtf\.click/g,
+			PROXY_ORIGIN.replace(/^http/, 'ws'),
+		)
 }
 
 // ── iOS UA + chrome shim (mirrors SPWEappWebView injectedJavaScript) ──────────
@@ -156,63 +169,68 @@ const proxy = createProxyMiddleware({
 	agent,
 
 	on: {
-		proxyRes: responseInterceptor(async (responseBuffer, proxyRes, req, res) => {
-			// Strip iframe-blocking headers
-			delete proxyRes.headers['x-frame-options']
-			delete proxyRes.headers['content-security-policy']
-			delete proxyRes.headers['content-security-policy-report-only']
-			res.removeHeader('X-Frame-Options')
-			res.removeHeader('Content-Security-Policy')
-			res.removeHeader('Content-Security-Policy-Report-Only')
+		proxyRes: responseInterceptor(
+			async (responseBuffer, proxyRes, req, res) => {
+				// Strip iframe-blocking headers
+				delete proxyRes.headers['x-frame-options']
+				delete proxyRes.headers['content-security-policy']
+				delete proxyRes.headers['content-security-policy-report-only']
+				res.removeHeader('X-Frame-Options')
+				res.removeHeader('Content-Security-Policy')
+				res.removeHeader('Content-Security-Policy-Report-Only')
 
-			// Rewrite Location header so redirects stay inside the proxy
-			if (proxyRes.headers['location']) {
-				const rewritten = rewriteUrls(proxyRes.headers['location'])
-				proxyRes.headers['location'] = rewritten
-				res.setHeader('Location', rewritten)
-			}
-
-			// Strip domain from Set-Cookie so cookies work on proxy origin
-			if (proxyRes.headers['set-cookie']) {
-				const cookies = Array.isArray(proxyRes.headers['set-cookie'])
-					? proxyRes.headers['set-cookie']
-					: [proxyRes.headers['set-cookie']]
-				const rewritten = cookies.map(c =>
-					c.replace(/;\s*domain=[^;]*/gi, '').replace(/;\s*secure/gi, ''),
-				)
-				proxyRes.headers['set-cookie'] = rewritten
-				res.setHeader('Set-Cookie', rewritten)
-			}
-
-			const contentType = proxyRes.headers['content-type'] || ''
-			const isText =
-				contentType.includes('text/') ||
-				contentType.includes('javascript') ||
-				contentType.includes('json') ||
-				contentType.includes('xml')
-
-			if (!isText) return responseBuffer
-
-			let body = responseBuffer.toString('utf8')
-			body = rewriteUrls(body)
-
-			if (contentType.includes('text/html')) {
-				// Strip the inner site's manifest so Chrome doesn't
-				// offer to install the proxy site as a separate PWA
-				body = body.replace(/<link[^>]*rel\s*=\s*["']?manifest["']?[^>]*\/?>/gi, '')
-
-				const inject = UA_SHIM + GOOGLE_AUTH_SHIM
-				if (body.includes('<head>')) {
-					body = body.replace('<head>', '<head>' + inject)
-				} else if (body.includes('<html')) {
-					body = body.replace(/<html[^>]*>/, m => m + inject)
-				} else {
-					body = inject + body
+				// Rewrite Location header so redirects stay inside the proxy
+				if (proxyRes.headers['location']) {
+					const rewritten = rewriteUrls(proxyRes.headers['location'])
+					proxyRes.headers['location'] = rewritten
+					res.setHeader('Location', rewritten)
 				}
-			}
 
-			return Buffer.from(body, 'utf8')
-		}),
+				// Strip domain from Set-Cookie so cookies work on proxy origin
+				if (proxyRes.headers['set-cookie']) {
+					const cookies = Array.isArray(proxyRes.headers['set-cookie'])
+						? proxyRes.headers['set-cookie']
+						: [proxyRes.headers['set-cookie']]
+					const rewritten = cookies.map(c =>
+						c.replace(/;\s*domain=[^;]*/gi, '').replace(/;\s*secure/gi, ''),
+					)
+					proxyRes.headers['set-cookie'] = rewritten
+					res.setHeader('Set-Cookie', rewritten)
+				}
+
+				const contentType = proxyRes.headers['content-type'] || ''
+				const isText =
+					contentType.includes('text/') ||
+					contentType.includes('javascript') ||
+					contentType.includes('json') ||
+					contentType.includes('xml')
+
+				if (!isText) return responseBuffer
+
+				let body = responseBuffer.toString('utf8')
+				body = rewriteUrls(body)
+
+				if (contentType.includes('text/html')) {
+					// Strip the inner site's manifest so Chrome doesn't
+					// offer to install the proxy site as a separate PWA
+					body = body.replace(
+						/<link[^>]*rel\s*=\s*["']?manifest["']?[^>]*\/?>/gi,
+						'',
+					)
+
+					const inject = UA_SHIM + GOOGLE_AUTH_SHIM
+					if (body.includes('<head>')) {
+						body = body.replace('<head>', '<head>' + inject)
+					} else if (body.includes('<html')) {
+						body = body.replace(/<html[^>]*>/, m => m + inject)
+					} else {
+						body = inject + body
+					}
+				}
+
+				return Buffer.from(body, 'utf8')
+			},
+		),
 
 		error: (err, req, res) => {
 			console.error('Proxy error:', err.message)

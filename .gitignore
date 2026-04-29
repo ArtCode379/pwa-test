@@ -1,7 +1,7 @@
 node_modules/
 proxy/node_modules/
-package.json
-package-lock.json
+/package.json
+/package-lock.json
 icons/icon-192.png
 icons/icon-512.png
 icons/icon.svg
